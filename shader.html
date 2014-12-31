@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<style>
+		.top {
+			margin: 10px auto;
+			top: 0;
+			left: 0;
+		}
+		.nav {
+			display: table;
+		}
+		.nav > * {
+			display: table-cell;
+			padding: 10px;
+		}
+		.resizable {
+			resize: both;
+		}
+		#context {
+			position: absolute;
+			width: 100%;
+			height: 100%;
+			top: 0;
+			left: 0;
+			z-index: -1;
+		}
+	</style>
+	<script type="text/javascript">
+		function init() {
+			
+		}
+	</script>
+</head>
+<body>
+	<div class="top nav">		
+		<a href="#vertices">Vertices</a>
+		<a href="#geometry">Geometry</a>
+		<a href="#vertex">Vertex</a>
+		<a href="#fragment">Fragment</a>
+	</div>
+	<canvas id="context"></canvas>
+	<div class="resizable" id="#vertex_inputs"><textarea></textarea></div>
+	<div class="resizable" id="#geometry_shader"><textarea></textarea></div>
+	<div class="resizable" id="#vertex_shader"><textarea></textarea></div>
+	<div class="resizable" id="#frag_shader"><textarea></textarea></div>
+</body>
+</html>
