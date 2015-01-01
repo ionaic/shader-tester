@@ -1,7 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<style>
+	<style type="text/css">
+		body, a, div, p {
+			color: #0066CC;
+		}
+		a {
+			text-decoration: none;
+		}
 		textarea {
 			width: 45%;
 			height: 45%;
@@ -13,7 +19,6 @@
 		}
 		.nav {
 			display: table;
-			height: 50px;
 		}
 		.nav > * {
 			display: table-cell;
@@ -40,18 +45,26 @@
 		}
 		.overlay {
 			z-index: 10;
-			opacity: 0.75;
+			transition: 		background-color 0.3s ease-in 0s;
+			-webkit-transition: background-color 0.3s ease-in 0s;
+			-moz-transition: 	background-color 0.3s ease-in 0s;
+			-o-transition:		background-color 0.3s ease-in 0s;
+			-ms-transition:		background-color 0.3s ease-in 0s;
+			background-color: rgba(0, 0, 0, 0.0);
+			text-shadow: 0.3px 0.3px #000;
 			color: #0066CC;
-			background: #111;
 		}
-		.gl-console-element {
+		.overlay:hover {
+			background-color: rgba(0, 0, 0, 0.8);
+		}
+		.gl-console-error {
 			color: red;
 		}
 		#console {
 			margin: 10px auto;
 			overflow: scroll;
 			resize: both;
-			<!-- border: solid 3px #333; -->
+			/* border: solid 3px #333;*/
 		}
 		#context {
 			position: absolute;
@@ -63,7 +76,10 @@
 		}
 	</style>
 	<script type="text/javascript">
+		// utilities
 		var gl_console = null;
+		
+		// error logging
 		function CreateConsoleMessage(message) {
 			// TODO sanitize the messages
 			var p = document.createElement("pre");
@@ -82,8 +98,60 @@
 				gl_console = document.getElementById("console");
 			}
 			var console_element = CreateConsoleMessage(message);
-			console_element.class = "gl-console-error";
+			addClass(console_element, "gl-console-error");
 			gl_console.appendChild(console_element);
+		}
+		
+		/* add a class */
+		function addClass(obj, selected_class) {
+			if (obj.className === undefined) {
+				obj.className = selected_class;
+			}
+			else {
+				classes = obj.className.split(' ');
+				if (classes.indexOf === undefined) {
+					// going the long way for older browsers
+					for (var i = 0; i < classes.length; i++) {
+						if (classes[i] === selected_class) {
+							break;
+						}
+					}
+				}
+				else {
+					var idx = classes.indexOf(selected_class);
+					if (idx < 0) {
+						classes.push(selected_class);
+					}
+				}
+				obj.className = classes.join(" ");
+			}
+			return obj;
+		}
+
+		/* remove a class */
+		function removeClass(obj, selected_class) {
+			if (obj.className === undefined) {
+				obj.className = "";
+			}
+			else {
+				classes = obj.className.split(' ');
+				if (classes.indexOf === undefined) {
+					// going the long way for older browsers
+					for (var i = 0; i < classes.length; i++) {
+						if (classes[i] === selected_class) {
+							classes.splice(i, 1);
+						}
+					}
+				}
+				else {
+					var idx = classes.indexOf(selected_class);
+					if (idx >= 0) {
+						classes.splice(idx, 1);
+					}
+				}
+				obj.className = classes.join(" ");
+			}
+			return obj;
 		}
 	</script>
 	<script type="text/javascript">
@@ -169,6 +237,9 @@
 			}
 			
 			initShaders();
+			
+			updatePaneVisibility();
+			parseObj(pane_elements.vertices.value);
 		}
 	</script>
 	<script type="text/javascript">
@@ -215,84 +286,84 @@
 	</script>
 	<script>
 		var Vertex = {
-			position : [0.0f, 0.0f, 0.0f, 0.0f],
-			normal : [0.0f, 0.0f, 0.0f],
-			color : [0.0f, 0.0f, 0.0f, 1.0f],
-			texcoord : [0.0f, 0.0f]
+			position : new Float32Array([0.0, 0.0, 0.0, 0.0]),
+			normal : new Float32Array([0.0, 0.0, 0.0]),
+			color : new Float32Array([0.0, 0.0, 0.0, 1.0]),
+			texcoord : new Float32Array([0.0, 0.0])
 		};
 		var vertices;
-		function parseObj() {
-			updatePaneVisibility();
-			var str = pane_elements[vertices].value;
+		function parseObj(str) {
+			// currently does a naive conversion, ends up with non-indexed geometry
+			// TODO try to convert obj indexed geometry to indexed VBO (make a hashset, index in on string of the combination)
+			var lines = str.split("\n");
+			var positions = new Array();
+			var normals = new Array();
+			var texcoords = new Array();
+			var vert_objs = new Array();
+			var faces = new Array();
 			
-		}
-	</script>
-	<script type="text/javascript">
-		// utilities
-		/* add a class */
-		function addClass(obj, selected_class) {
-			if (obj.className === undefined) {
-				obj.className = selected_class;
-			}
-			else {
-				classes = obj.className.split(' ');
-				if (classes.indexOf === undefined) {
-					// going the long way for older browsers
-					for (var i = 0; i < classes.length; i++) {
-						if (classes[i] === selected_class) {
-							break;
+			for (var idx = 0; idx < lines.length; ++idx) {
+				var token = lines[idx].match(/[A-Za-z#]+/);
+				if (token == "#" || !token) {
+					continue;
+				}
+				var values = lines[idx].match(/[0-9.-]+/g);
+				if (token == "v") {
+					var tmp = new Float32Array(4);
+					tmp[0] = values[0] || 0.0; // if value parsing failed, default to (0,0,0,1)
+					tmp[1] = values[1] || 0.0;
+					tmp[2] = values[2] || 0.0;
+					tmp[3] = values[3] || 1.0;
+					positions.push(tmp);
+				}
+				else if (token == "vt") {
+					var tmp = new Float32Array(2);
+					tmp[0] = values[0] || 0.0; // if value parsing failed, default to (0,0)
+					tmp[1] = values[1] || 0.0;
+					texcoords.push(tmp);
+				}
+				else if (token == "vn") {
+					var tmp = new Float32Array(3);
+					tmp[0] = values[0] || 0.0; // if value parsing failed, default to (0,0,0,1)
+					tmp[1] = values[1] || 0.0;
+					tmp[3] = values[3] || 1.0;
+					normals.push(tmp);
+				}
+				else if (token == "f") {
+					values = lines[idx].match(/[0-9\/]+/g);
+					LogConsole("Rematch face: " + values);
+					if (values) {
+						for (var val in values) {
+							// need to prevent duplicates
+							vert_objs.push(values[val]);
 						}
+						faces.push(values);
+					}
+					else {
+						LogConsoleError("Face found with null value on line " + (idx + 1) + ": " + lines[idx]);
 					}
 				}
 				else {
-					var idx = classes.indexOf(selected_class);
-					if (idx < 0) {
-						classes.push(selected_class);
-					}
+					LogConsoleError("Unknown or un-implemented starting token " + token);
+					continue;
 				}
-				obj.className = classes.join(" ");
 			}
-			return obj;
-		}
-
-		/* remove a class */
-		function removeClass(obj, selected_class) {
-			if (obj.className === undefined) {
-				obj.className = "";
-			}
-			else {
-				classes = obj.className.split(' ');
-				if (classes.indexOf === undefined) {
-					// going the long way for older browsers
-					for (var i = 0; i < classes.length; i++) {
-						if (classes[i] === selected_class) {
-							classes.splice(i, 1);
-						}
-					}
-				}
-				else {
-					var idx = classes.indexOf(selected_class);
-					if (idx >= 0) {
-						classes.splice(idx, 1);
-					}
-				}
-				obj.className = classes.join(" ");
-			}
-			return obj;
+			LogConsole(positions);
+			LogConsole(vert_objs);
 		}
 	</script>
 </head>
 <body>
 	<div class="overlay top nav">		
-		<a class="overlay" href="#vertices" onclick="toggle('vertices');">Vertices       </a>
-		<a class="overlay" href="#geometry" onclick="toggle('geometry');">Geometry Shader</a>
-		<a class="overlay" href="#vertex"   onclick="toggle('vertex');"  >Vertex Shader  </a>
-		<a class="overlay" href="#fragment" onclick="toggle('fragment');">Fragment Shader</a>
+		<a href="#vertices" onclick="toggle('vertices');">Vertices       </a>
+		<a href="#geometry" onclick="toggle('geometry');">Geometry Shader</a>
+		<a href="#vertex"   onclick="toggle('vertex');"  >Vertex Shader  </a>
+		<a href="#fragment" onclick="toggle('fragment');">Fragment Shader</a>
 	</div>
 	<canvas id="context"></canvas>
 	<div class="multi-pane">
-# can hand specify obj file or copy and paste
 		<textarea class="resizable overlay" id="vertex-inputs" onchange="updateShaders();">
+# can hand specify obj file or copy and paste
 # currently does not support full objfile, ignores materials, 
 #	objects, groups, smoothing groups, and parameter space vertices
 
@@ -321,6 +392,9 @@ f 0/0/0 2/2/2 3/3/3
 		<textarea class="resizable overlay" id="geometry-shader" onchange="updateShaders();">
 precision mediump float;
 // currently ignoring geometry shaders as more frequently I use vertex/fragment
+// apparently webgl has no geometry shaders so this will get replaced with some sort of pass editor
+// additionally having a thing that you can input javascript and have it be used as a function to 
+// generate geometry would be pretty darn useful, if I can figure out how to make that safe
 		</textarea>
 		<textarea class="resizable overlay" id="vertex-shader" onchange="updateShaders();">
 precision mediump float;
