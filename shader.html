@@ -41,6 +41,8 @@
 		.overlay {
 			z-index: 10;
 			opacity: 0.75;
+			color: #0066CC;
+			background: #111;
 		}
 		.gl-console-element {
 			color: red;
@@ -49,6 +51,7 @@
 			margin: 10px auto;
 			overflow: scroll;
 			resize: both;
+			<!-- border: solid 3px #333; -->
 		}
 		#context {
 			position: absolute;
@@ -115,25 +118,25 @@
 			
 			// compile vertex shader and log errors
 			gl.compileShader(shader.vert);
+			LogConsole("Compiling vertex shader...");
 			if (!gl.getShaderParameter(shader.vert, gl.COMPILE_STATUS)) {
 				LogConsoleError(gl.getShaderInfoLog(shader.vert));
 			}
 			else {
-				LogConsole(gl.getShaderParameter(shader.vert));
+				LogConsole(gl.getShaderParameter(shader.vert, gl.COMPILE_STATUS));
 				LogConsole(gl.getShaderInfoLog(shader.vert));
 			}
 			
 			// compile fragment shader and log errors
 			gl.compileShader(shader.frag);
+			LogConsole("Compiling fragment shader...");
 			if (!gl.getShaderParameter(shader.frag, gl.COMPILE_STATUS)) {
 				LogConsoleError(gl.getShaderInfoLog(shader.frag));
 			}
 			else {
-				LogConsole(gl.getShaderParameter(shader.frag));
+				LogConsole(gl.getShaderParameter(shader.frag, gl.COMPILE_STATUS));
 				LogConsole(gl.getShaderInfoLog(shader.frag));
 			}
-			
-			
 		}
 		
 		function updateShaders() {
@@ -210,6 +213,20 @@
 			updatePaneVisibility();
 		}
 	</script>
+	<script>
+		var Vertex = {
+			position : [0.0f, 0.0f, 0.0f, 0.0f],
+			normal : [0.0f, 0.0f, 0.0f],
+			color : [0.0f, 0.0f, 0.0f, 1.0f],
+			texcoord : [0.0f, 0.0f]
+		};
+		var vertices;
+		function parseObj() {
+			updatePaneVisibility();
+			var str = pane_elements[vertices].value;
+			
+		}
+	</script>
 	<script type="text/javascript">
 		// utilities
 		/* add a class */
@@ -267,15 +284,15 @@
 </head>
 <body>
 	<div class="overlay top nav">		
-		<a href="#vertices" onclick="toggle('vertices');">Vertices       </a>
-		<a href="#geometry" onclick="toggle('geometry');">Geometry Shader</a>
-		<a href="#vertex"   onclick="toggle('vertex');"  >Vertex Shader  </a>
-		<a href="#fragment" onclick="toggle('fragment');">Fragment Shader</a>
+		<a class="overlay" href="#vertices" onclick="toggle('vertices');">Vertices       </a>
+		<a class="overlay" href="#geometry" onclick="toggle('geometry');">Geometry Shader</a>
+		<a class="overlay" href="#vertex"   onclick="toggle('vertex');"  >Vertex Shader  </a>
+		<a class="overlay" href="#fragment" onclick="toggle('fragment');">Fragment Shader</a>
 	</div>
 	<canvas id="context"></canvas>
-	<div class="overlay multi-pane">
-		<textarea class="resizable" id="vertex-inputs" onchange="updateShaders();">
+	<div class="multi-pane">
 # can hand specify obj file or copy and paste
+		<textarea class="resizable overlay" id="vertex-inputs" onchange="updateShaders();">
 # currently does not support full objfile, ignores materials, 
 #	objects, groups, smoothing groups, and parameter space vertices
 
@@ -301,24 +318,24 @@ vn 0.0 0.0 1.0
 f 0/0/0 1/1/1 2/2/2
 f 0/0/0 2/2/2 3/3/3 
 		</textarea>
-		<textarea class="resizable" id="geometry-shader" onchange="updateShaders();">
-#version 300
+		<textarea class="resizable overlay" id="geometry-shader" onchange="updateShaders();">
+precision mediump float;
 // currently ignoring geometry shaders as more frequently I use vertex/fragment
 		</textarea>
-		<textarea class="resizable" id="vertex-shader" onchange="updateShaders();">
-#version 300 es
+		<textarea class="resizable overlay" id="vertex-shader" onchange="updateShaders();">
+precision mediump float;
 
-in vec4 position;
-in vec4 normal;
-in vec4 color;
-in vec2 uv;
+attribute vec4 position;
+attribute vec4 normal;
+attribute vec4 color;
+attribute vec2 uv;
 
-out vec4 vs_color;
-out vec2 vs_uv;
+varying vec4 vs_color;
+varying vec2 vs_uv;
 
-in mat4 modelMatrix;
-in mat4 viewMatrix;
-in mat4 projectionMatrix;
+uniform mat4 modelMatrix;
+uniform mat4 viewMatrix;
+uniform mat4 projectionMatrix;
 
 void main(void) {
 	// default: multiply the transform matrices and multiply the position by the transforms
@@ -329,20 +346,18 @@ void main(void) {
 	vs_uv = uv;
 }
 		</textarea>
-		<textarea class="resizable" id="frag-shader" onchange="updateShaders();">
-#version 300 es
+		<textarea class="resizable overlay" id="frag-shader" onchange="updateShaders();">
+precision mediump float;
 
-in vec4 vs_color;
-in vec2 vs_uv;
-
-out vec4 out_color;
+varying vec4 vs_color;
+varying vec2 vs_uv;
 
 void main(void) {
 	// default: pass the color through
-	out_color = vs_color;
+	gl_FragColor = vs_color;
 }
 		</textarea>
-		<div class="float-clear" id="console"></div>
+		<div class="float-clear overlay" id="console"></div>
 	</div>
 	<script>
 		var canvas = document.getElementById("context");
