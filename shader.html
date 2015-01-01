@@ -2,6 +2,10 @@
 <html>
 <head>
 	<style>
+		textarea {
+			width: 45%;
+			height: 45%;
+		}
 		.top {
 			margin: 10px auto;
 			top: 0;
@@ -9,12 +13,41 @@
 		}
 		.nav {
 			display: table;
+			height: 50px;
 		}
 		.nav > * {
 			display: table-cell;
 			padding: 10px;
 		}
+		.multi-pane {
+			position: absolute;
+			top: 50px;
+			width: 100%;
+			height: 100%;
+			margin: 10px auto;
+		}
+		.multi-pane > * {
+			float: left;
+		}
 		.resizable {
+			resize: both;
+		}
+		.float-clear {
+			float: clear !important;
+		}
+		.invisible {
+			display: none;
+		}
+		.overlay {
+			z-index: 10;
+			opacity: 0.75;
+		}
+		.gl-console-element {
+			color: red;
+		}
+		#console {
+			margin: 10px auto;
+			overflow: scroll;
 			resize: both;
 		}
 		#context {
@@ -27,22 +60,293 @@
 		}
 	</style>
 	<script type="text/javascript">
-		function init() {
+		var gl_console = null;
+		function CreateConsoleMessage(message) {
+			// TODO sanitize the messages
+			var p = document.createElement("pre");
+			var text = document.createTextNode(message);
+			p.appendChild(text);
+			return p;
+		}
+		function LogConsole(message) {
+			if (!gl_console) {
+				gl_console = document.getElementById("console");
+			}
+			gl_console.appendChild(CreateConsoleMessage(message));
+		}
+		function LogConsoleError(message) {
+			if (!gl_console) {
+				gl_console = document.getElementById("console");
+			}
+			var console_element = CreateConsoleMessage(message);
+			console_element.class = "gl-console-error";
+			gl_console.appendChild(console_element);
+		}
+	</script>
+	<script type="text/javascript">
+		var gl;
+		var shader = {
+			program : null,
+			vert : null,
+			frag : null,
+			geom : null
+		};
+		var vert_data;
+		
+
+		
+		function initShaders() {
+			if (!gl) {
+				LogConsole("In function initShaders, GL not initialized, creating")
+				return;
+			}
+			// create the program
+			shader.program = gl.createProgram();
 			
+			// create the shaders
+			shader.vert = gl.createShader(gl.VERTEX_SHADER);
+			shader.frag = gl.createShader(gl.FRAGMENT_SHADER);
+			
+			// load the shader sources
+			var vs_el = document.getElementById("vertex-shader");
+			var fs_el = document.getElementById("frag-shader");
+			gl.shaderSource(shader.vert, vs_el.value);
+			gl.shaderSource(shader.frag, fs_el.value);
+			
+			// compile vertex shader and log errors
+			gl.compileShader(shader.vert);
+			if (!gl.getShaderParameter(shader.vert, gl.COMPILE_STATUS)) {
+				LogConsoleError(gl.getShaderInfoLog(shader.vert));
+			}
+			else {
+				LogConsole(gl.getShaderParameter(shader.vert));
+				LogConsole(gl.getShaderInfoLog(shader.vert));
+			}
+			
+			// compile fragment shader and log errors
+			gl.compileShader(shader.frag);
+			if (!gl.getShaderParameter(shader.frag, gl.COMPILE_STATUS)) {
+				LogConsoleError(gl.getShaderInfoLog(shader.frag));
+			}
+			else {
+				LogConsole(gl.getShaderParameter(shader.frag));
+				LogConsole(gl.getShaderInfoLog(shader.frag));
+			}
+			
+			
+		}
+		
+		function updateShaders() {
+			if (!gl) {
+				LogConsole("In function updateShaders, GL not initialized, creating")
+				return;
+			}
+			LogConsole("Update Shaders");
+		}
+		
+		function initBuffers() {
+			if (!gl) {
+				LogConsole("In function initBuffers, GL not initialized, creating")
+				return;
+			}
+		}
+
+		function init(canvas) {
+			try {
+				gl = canvas.getContext("webgl");
+				gl.viewportWidth = canvas.width;
+				gl.viewportHeight = canvas.height;
+			}
+			catch (e) {}
+			if (!gl) {
+				LogConsoleError("Could not initialize WebGL context");
+			}
+			else {
+				LogConsole("WebGL Context initialized");
+			}
+			
+			initShaders();
+		}
+	</script>
+	<script type="text/javascript">
+		// states for the various panes that can be visible
+		// true is visible, false is not
+		var pane_state = {
+			vertices : true,
+			geometry : true,
+			vertex : true,
+			fragment : true,
+			console : true
+		};
+		var pane_elements;
+		
+		function updatePaneVisibility() {
+			if (!pane_elements) {
+				pane_elements = new Object();
+				pane_elements.vertices = document.getElementById('vertex-inputs');
+				pane_elements.geometry = document.getElementById('geometry-shader');
+				pane_elements.vertex = document.getElementById('vertex-shader');
+				pane_elements.fragment = document.getElementById('frag-shader');
+				pane_elements.console = document.getElementById('console');
+			}
+			
+			for (var prop in pane_elements) {
+				if (pane_state[prop]) {
+					removeClass(pane_elements[prop], "invisible");
+				}
+				else {
+					addClass(pane_elements[prop], "invisible");
+				}
+			}
+		}
+		
+		function toggle(pane) {
+			LogConsole("Changing visibility of " + pane);
+			// ignores calls that don't refer to a proper pane
+			if (pane_state.hasOwnProperty(pane)) {
+				pane_state[pane] = !pane_state[pane];
+			}
+			
+			updatePaneVisibility();
+		}
+	</script>
+	<script type="text/javascript">
+		// utilities
+		/* add a class */
+		function addClass(obj, selected_class) {
+			if (obj.className === undefined) {
+				obj.className = selected_class;
+			}
+			else {
+				classes = obj.className.split(' ');
+				if (classes.indexOf === undefined) {
+					// going the long way for older browsers
+					for (var i = 0; i < classes.length; i++) {
+						if (classes[i] === selected_class) {
+							break;
+						}
+					}
+				}
+				else {
+					var idx = classes.indexOf(selected_class);
+					if (idx < 0) {
+						classes.push(selected_class);
+					}
+				}
+				obj.className = classes.join(" ");
+			}
+			return obj;
+		}
+
+		/* remove a class */
+		function removeClass(obj, selected_class) {
+			if (obj.className === undefined) {
+				obj.className = "";
+			}
+			else {
+				classes = obj.className.split(' ');
+				if (classes.indexOf === undefined) {
+					// going the long way for older browsers
+					for (var i = 0; i < classes.length; i++) {
+						if (classes[i] === selected_class) {
+							classes.splice(i, 1);
+						}
+					}
+				}
+				else {
+					var idx = classes.indexOf(selected_class);
+					if (idx >= 0) {
+						classes.splice(idx, 1);
+					}
+				}
+				obj.className = classes.join(" ");
+			}
+			return obj;
 		}
 	</script>
 </head>
 <body>
-	<div class="top nav">		
-		<a href="#vertices">Vertices</a>
-		<a href="#geometry">Geometry</a>
-		<a href="#vertex">Vertex</a>
-		<a href="#fragment">Fragment</a>
+	<div class="overlay top nav">		
+		<a href="#vertices" onclick="toggle('vertices');">Vertices       </a>
+		<a href="#geometry" onclick="toggle('geometry');">Geometry Shader</a>
+		<a href="#vertex"   onclick="toggle('vertex');"  >Vertex Shader  </a>
+		<a href="#fragment" onclick="toggle('fragment');">Fragment Shader</a>
 	</div>
 	<canvas id="context"></canvas>
-	<div class="resizable" id="#vertex_inputs"><textarea></textarea></div>
-	<div class="resizable" id="#geometry_shader"><textarea></textarea></div>
-	<div class="resizable" id="#vertex_shader"><textarea></textarea></div>
-	<div class="resizable" id="#frag_shader"><textarea></textarea></div>
+	<div class="overlay multi-pane">
+		<textarea class="resizable" id="vertex-inputs" onchange="updateShaders();">
+# can hand specify obj file or copy and paste
+# currently does not support full objfile, ignores materials, 
+#	objects, groups, smoothing groups, and parameter space vertices
+
+# vertices
+v 0.0 0.0 0.0 1.0
+v 1.0 0.0 0.0 1.0
+v 1.0 1.0 0.0 1.0
+v 0.0 1.0 0.0 1.0
+
+# texture coordinates
+vt 0.0 1.0
+vt 1.0 1.0
+vt 1.0 0.0
+vt 0.0 0.0
+
+# normals
+vn 0.0 0.0 1.0
+vn 0.0 0.0 1.0
+vn 0.0 0.0 1.0
+vn 0.0 0.0 1.0
+
+# face definitions
+f 0/0/0 1/1/1 2/2/2
+f 0/0/0 2/2/2 3/3/3 
+		</textarea>
+		<textarea class="resizable" id="geometry-shader" onchange="updateShaders();">
+#version 300
+// currently ignoring geometry shaders as more frequently I use vertex/fragment
+		</textarea>
+		<textarea class="resizable" id="vertex-shader" onchange="updateShaders();">
+#version 300 es
+
+in vec4 position;
+in vec4 normal;
+in vec4 color;
+in vec2 uv;
+
+out vec4 vs_color;
+out vec2 vs_uv;
+
+in mat4 modelMatrix;
+in mat4 viewMatrix;
+in mat4 projectionMatrix;
+
+void main(void) {
+	// default: multiply the transform matrices and multiply the position by the transforms
+	gl_Position = projectionMatrix * viewMatrix * modelMatrix * position;
+	
+	// default: pass the color and texture coordinate to the fragment shader
+	vs_color = color;
+	vs_uv = uv;
+}
+		</textarea>
+		<textarea class="resizable" id="frag-shader" onchange="updateShaders();">
+#version 300 es
+
+in vec4 vs_color;
+in vec2 vs_uv;
+
+out vec4 out_color;
+
+void main(void) {
+	// default: pass the color through
+	out_color = vs_color;
+}
+		</textarea>
+		<div class="float-clear" id="console"></div>
+	</div>
+	<script>
+		var canvas = document.getElementById("context");
+		init(canvas);
+	</script>
 </body>
 </html>
