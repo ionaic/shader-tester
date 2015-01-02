@@ -34,6 +34,9 @@ function ObjectToString(obj, depth) {
 		if (typeof obj[prop] == "object") {
 			str += ObjectToString(obj[prop], depth + 1);
 		}
+		else if (typeof obj[prop] == "undefined") {
+			str += "undefined";
+		}
 		else {
 			str += obj[prop];
 		}

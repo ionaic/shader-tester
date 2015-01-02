@@ -131,13 +131,15 @@ function draw() {
 	var uv_size = model.vertices_objects[0].texcoord.length;
 	var color_size = model.vertices_objects[0].color.length;
 	
+	LogConsole(ObjectToString(shader));
+	
 	gl.vertexAttribPointer(shader.attribLocations["position"], position_size, gl.FLOAT, false, vert_size, 0);
-	gl.vertexAttribPointer(shader.attribLocations["normal"], normal_size, gl.FLOAT, false, vert_size, position_size * float_size);
+	// gl.vertexAttribPointer(shader.attribLocations["normal"], normal_size, gl.FLOAT, false, vert_size, position_size * float_size);
 	gl.vertexAttribPointer(shader.attribLocations["uv"], uv_size, gl.FLOAT, false, vert_size, (position_size + normal_size) * float_size);
 	gl.vertexAttribPointer(shader.attribLocations["color"], color_size, gl.FLOAT, false, vert_size, (position_size + normal_size + uv_size) * float_size);
 	
 	gl.enableVertexAttribArray(shader.attribLocations["position"]);
-	gl.enableVertexAttribArray(shader.attribLocations["normal"]);
+	// gl.enableVertexAttribArray(shader.attribLocations["normal"]);
 	gl.enableVertexAttribArray(shader.attribLocations["uv"]);
 	gl.enableVertexAttribArray(shader.attribLocations["color"]);
 	
