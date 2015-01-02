@@ -95,11 +95,11 @@ function updateShaders() {
 
 function initBuffers() {
 	model = parseObj(pane_elements.vertices.value);
+	LogConsole("Initializing buffers...");
 	if (!gl) {
 		LogConsole("In function initBuffers, GL not initialized, creating");
 		return;
 	}
-	LogConsole(ObjectToString(model));
 	// generate the buffers
 	buffers.vbo = gl.createBuffer();
 	buffers.ibo = gl.createBuffer();
