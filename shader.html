@@ -54,8 +54,8 @@
 			text-shadow: 0.3px 0.3px #000;
 			color: #0066CC;
 		}
-		.overlay:hover {
-			background-color: rgba(0, 0, 0, 0.8);
+		.overlay:hover, .overlay:active, .overlay:focus {
+			background-color: rgba(0, 0, 0, 0.9);
 		}
 		.gl-console-error {
 			color: red;
@@ -100,6 +100,25 @@
 			var console_element = CreateConsoleMessage(message);
 			addClass(console_element, "gl-console-error");
 			gl_console.appendChild(console_element);
+		}
+		function ObjectToString(obj, depth) {
+			if (!depth) {
+				depth = 0;
+			}
+			var tabdepth = new Array(depth + 1).join("\t");
+			var str = tabdepth + "{\n";
+			for (var prop in obj) {
+				str += tabdepth + "\t" + prop + " : ";
+				if (typeof obj[prop] == "object") {
+					str += ObjectToString(obj[prop], depth + 1);
+				}
+				else {
+					str += obj[prop];
+				}
+				str += ",\n";;
+			}
+			str += tabdepth + "}";
+			return str;
 		}
 		
 		/* add a class */
@@ -164,8 +183,6 @@
 		};
 		var vert_data;
 		
-
-		
 		function initShaders() {
 			if (!gl) {
 				LogConsole("In function initShaders, GL not initialized, creating")
@@ -209,7 +226,7 @@
 		
 		function updateShaders() {
 			if (!gl) {
-				LogConsole("In function updateShaders, GL not initialized, creating")
+				LogConsole("In function updateShaders, GL not initialized, creating");
 				return;
 			}
 			LogConsole("Update Shaders");
@@ -217,7 +234,7 @@
 		
 		function initBuffers() {
 			if (!gl) {
-				LogConsole("In function initBuffers, GL not initialized, creating")
+				LogConsole("In function initBuffers, GL not initialized, creating");
 				return;
 			}
 		}
@@ -256,7 +273,7 @@
 		
 		function updatePaneVisibility() {
 			if (!pane_elements) {
-				pane_elements = new Object();
+				pane_elements = {};
 				pane_elements.vertices = document.getElementById('vertex-inputs');
 				pane_elements.geometry = document.getElementById('geometry-shader');
 				pane_elements.vertex = document.getElementById('vertex-shader');
@@ -285,23 +302,34 @@
 		}
 	</script>
 	<script>
-		var Vertex = {
-			position : new Float32Array([0.0, 0.0, 0.0, 0.0]),
-			normal : new Float32Array([0.0, 0.0, 0.0]),
-			color : new Float32Array([0.0, 0.0, 0.0, 1.0]),
-			texcoord : new Float32Array([0.0, 0.0])
+		var Vertex = function() {
+			this.position 	= [0.0, 0.0, 0.0, 0.0];
+			this.normal 	= [0.0, 0.0, 0.0];
+			this.texcoord 	= [0.0, 0.0];
+			this.color 		= [0.0, 0.0, 0.0, 1.0];
+			this.GetDataArray = function() {
+				// guarantee that we have default values in case of undefined
+				return (this.position || this.prototype.position).concat(this.normal || this.prototype.position, this.texcoord || this.prototype.texcoord, this.color || this.prototype.color);
+			};
 		};
-		var vertices;
+		var vertices_objects;
+		var vertices_data;
+		var indices;
+		
 		function parseObj(str) {
 			// currently does a naive conversion, ends up with non-indexed geometry
 			// TODO try to convert obj indexed geometry to indexed VBO (make a hashset, index in on string of the combination)
+			LogConsole("Parsing OBJ...");
 			var lines = str.split("\n");
-			var positions = new Array();
-			var normals = new Array();
-			var texcoords = new Array();
-			var vert_objs = new Array();
-			var faces = new Array();
+			var verts = {};
 			
+			var positions = [];
+			var normals = [];
+			var texcoords = [];
+			var vert_objs = {};
+			var faces = [];
+			
+			// parse the obj string into arrays
 			for (var idx = 0; idx < lines.length; ++idx) {
 				var token = lines[idx].match(/[A-Za-z#]+/);
 				if (token == "#" || !token) {
@@ -309,7 +337,7 @@
 				}
 				var values = lines[idx].match(/[0-9.-]+/g);
 				if (token == "v") {
-					var tmp = new Float32Array(4);
+					var tmp = [];
 					tmp[0] = values[0] || 0.0; // if value parsing failed, default to (0,0,0,1)
 					tmp[1] = values[1] || 0.0;
 					tmp[2] = values[2] || 0.0;
@@ -317,13 +345,13 @@
 					positions.push(tmp);
 				}
 				else if (token == "vt") {
-					var tmp = new Float32Array(2);
+					var tmp = [];
 					tmp[0] = values[0] || 0.0; // if value parsing failed, default to (0,0)
 					tmp[1] = values[1] || 0.0;
 					texcoords.push(tmp);
 				}
 				else if (token == "vn") {
-					var tmp = new Float32Array(3);
+					var tmp = [];
 					tmp[0] = values[0] || 0.0; // if value parsing failed, default to (0,0,0,1)
 					tmp[1] = values[1] || 0.0;
 					tmp[3] = values[3] || 1.0;
@@ -331,13 +359,12 @@
 				}
 				else if (token == "f") {
 					values = lines[idx].match(/[0-9\/]+/g);
-					LogConsole("Rematch face: " + values);
 					if (values) {
 						for (var val in values) {
-							// need to prevent duplicates
-							vert_objs.push(values[val]);
+							// need to prevent duplicates, use object as set
+							vert_objs[values[val]] = -1;
 						}
-						faces.push(values);
+						faces.push(values.join(" "));
 					}
 					else {
 						LogConsoleError("Face found with null value on line " + (idx + 1) + ": " + lines[idx]);
@@ -348,8 +375,67 @@
 					continue;
 				}
 			}
-			LogConsole(positions);
-			LogConsole(vert_objs);
+			
+			// produce the vertex objects to be indexed
+			for (var v in vert_objs) {
+				var idxs = v.split("/");
+				
+				var tmp_v = new Vertex();
+				tmp_v.position = positions[idxs[0]];
+				tmp_v.texcoord = texcoords[idxs[1]];
+				tmp_v.normal = normals[idxs[2]];
+				
+				if (!tmp_v.position) {
+					LogConsoleError("No vertex defined for index " + idxs[0] + " in face definition " + idxs + "\n\tMax index defined is " + (positions.length-1));
+					continue;
+				}
+				if (!tmp_v.texcoord && idxs[1] >= 0) {
+					LogConsoleError("No texture coordinate defined for index " + idxs[1] + " in face definition " + idxs + "\n\tMax index defined is " + (texcoords.length - 1));
+				}
+				if (!tmp_v.normal && idxs[2] >= 0) {
+					LogConsoleError("No vertex normal defined for index " + idxs[2] + " in face definition " + idxs + "\n\tMax index defined is " + (normals.length-1));
+				}
+				verts[v] = tmp_v;
+			}
+			
+			// set up indices
+			vertices = [];
+			indices = [];
+			LogConsole(faces);
+			for (var f in faces) {
+				var tmp_f = faces[f].split(" ");
+				
+				// TODO currently require the definitions to be triangle faces
+				for (var idx = 0; idx < 3; ++idx) {
+					// fill in a default vertex if it does not exist
+					// undefined vertex values filled in by the GetDataArray function
+					if (verts[tmp_f[idx]]) {
+						// if this value is -1, then it has not been added to the vertices array yet
+						if (vert_objs[tmp_f[idx]] < 0) {
+							vertices.push(verts[tmp_f[idx]]);
+							
+							LogConsole("Adding vertex " + tmp_f[idx] + " at index " + (vertices.length - 1));
+							
+							vert_objs[tmp_f[idx]] = vertices.length - 1;
+						}
+					}
+					else {
+						vertices.push((new Vertex()));
+						
+						LogConsoleError("No vertex found at index " + tmp_f[idx] + "\n\tin face " + f + ": " + faces[f] + "\nFilling in default vertex at index " + (vertices.length - 1));
+						
+						vert_objs[tmp_f[idx]] = vertices.length - 1;
+					}
+					indices.push(vert_objs[tmp_f[idx]]);
+				}
+				if (tmp_f.length > 3) {
+					LogConsoleError("Extra vertices given for face definition, currently requires triangle faces.\n\tface " + f + ": " + faces[f]);
+				}
+			}
+			
+			vertices_data = new Float32Array([].concat.apply([], vertices.map(function(val) { return val.GetDataArray(); })));
+			
+			LogConsole("OBJ Parsing done.");
 		}
 	</script>
 </head>
@@ -362,7 +448,7 @@
 	</div>
 	<canvas id="context"></canvas>
 	<div class="multi-pane">
-		<textarea class="resizable overlay" id="vertex-inputs" onchange="updateShaders();">
+		<textarea class="resizable overlay" id="vertex-inputs" onchange="parseObj(this.value);">
 # can hand specify obj file or copy and paste
 # currently does not support full objfile, ignores materials, 
 #	objects, groups, smoothing groups, and parameter space vertices
