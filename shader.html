@@ -84,6 +84,7 @@ varying vec2 vs_uv;
 void main(void) {
 	// default: pass the color through
 	gl_FragColor = vs_color;
+	gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0);
 }
 		</textarea>
 		<div class="overlay" id="console"></div>
@@ -91,6 +92,7 @@ void main(void) {
 	<script>
 		var canvas = document.getElementById("context");
 		init(canvas);
+		var drawInterval = window.setInterval(draw, 1000/30);
 	</script>
 </body>
 </html>
