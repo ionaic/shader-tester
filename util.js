@@ -32,7 +32,7 @@ function ObjectToString(obj, depth) {
 	for (var prop in obj) {
 		str += tabdepth + "\t" + prop + " : ";
 		if (typeof obj[prop] == "object") {
-			str += ObjectToString(obj[prop], depth + 1);
+			str += obj[prop].toString() + " " + ObjectToString(obj[prop], depth + 1);
 		}
 		else if (typeof obj[prop] == "undefined") {
 			str += "undefined";

@@ -99,7 +99,7 @@ function parseObj(str) {
 	
 	// set up indices
 	var rdata = new IndexedData();
-	LogConsole(faces);
+	//LogConsole(faces);
 	for (var f in faces) {
 		var tmp_f = faces[f].split(" ");
 		
@@ -112,7 +112,7 @@ function parseObj(str) {
 				if (vert_objs[tmp_f[idx]] < 0) {
 					rdata.vertices_objects.push(verts[tmp_f[idx]]);
 					
-					LogConsole("Adding vertex " + tmp_f[idx] + " at index " + (rdata.vertices_objects.length - 1));
+					//LogConsole("Adding vertex " + tmp_f[idx] + " at index " + (rdata.vertices_objects.length - 1));
 					
 					vert_objs[tmp_f[idx]] = rdata.vertices_objects.length - 1;
 				}

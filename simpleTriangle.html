@@ -2,8 +2,6 @@
 <html>
 <head>
 	<link rel="stylesheet" type="text/css" href="shader.css"/>
-	<script type="text/javascript" src="gl-matrix-min.js"></script>
-	<script type="text/javascript" src="https://www.khronos.org/registry/webgl/sdk/debug/webgl-debug.js"></script>
 	<script type="text/javascript" src="util.js"></script>
 	<script type="text/javascript" src="gl.js"></script>
 	<script type="text/javascript" src="ui.js"></script>
@@ -17,7 +15,7 @@
 		<a href="#" onclick="toggle('fragment');"	>Fragment Shader</a>
 		<a href="#" onclick="toggle('console');"	>Console		</a>
 	</div>
-	<canvas id="gl_context" ></canvas>
+	<canvas id="gl_context" width="500" height="500"></canvas>
 	<div class="multi-pane">
 		<textarea class="resizable overlay" id="vertex-inputs" onchange="parseObj(this.value);">
 # can hand specify obj file or copy and paste
@@ -46,14 +44,14 @@ vn 0.0 0.0 1.0
 f 0/0/0 1/1/1 2/2/2
 f 0/0/0 2/2/2 3/3/3 
 		</textarea>
-		<textarea class="resizable overlay" id="geometry-shader" onchange="updateShaders();">
+		<textarea class="resizable overlay" id="geometry-shader"  onchange="updateShaders();">
 precision mediump float;
 // currently ignoring geometry shaders as more frequently I use vertex/fragment
 // apparently webgl has no geometry shaders so this will get replaced with some sort of pass editor
 // additionally having a thing that you can input javascript and have it be used as a function to 
 // generate geometry would be pretty darn useful, if I can figure out how to make that safe
 		</textarea>
-		<textarea class="resizable overlay" id="vertex-shader" onchange="updateShaders();">
+		<textarea class="resizable overlay" id="vertex-shader"  onchange="updateShaders();">
 precision mediump float;
 
 attribute vec4 position;
@@ -70,7 +68,8 @@ uniform mat4 projectionMatrix;
 
 void main(void) {
 	// default: multiply the transform matrices and multiply the position by the transforms
-	gl_Position = projectionMatrix * viewMatrix * modelMatrix * position;
+	//gl_Position = projectionMatrix * viewMatrix * modelMatrix * position;
+	gl_Position = position;
 	
 	// default: pass the color and texture coordinate to the fragment shader
 	vs_color = color;
@@ -85,7 +84,7 @@ varying vec2 vs_uv;
 
 void main(void) {
 	// default: pass the color through
-	gl_FragColor = vs_color;
+	//gl_FragColor = vs_color;
 	gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0);
 }
 		</textarea>

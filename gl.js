@@ -4,7 +4,10 @@ var shader = {
 	vert : null,
 	frag : null,
 	attribLocations : {},
-	uniformLocations : {}
+	uniformLocations : {},
+	m_mat : mat4.create(),
+	v_mat : mat4.create(),
+	p_mat : mat4.create()
 };
 
 var buffers = {
@@ -95,6 +98,7 @@ function updateShaders() {
 
 function initBuffers() {
 	model = parseObj(pane_elements.vertices.value);
+	
 	LogConsole("Initializing buffers...");
 	if (!gl) {
 		LogConsole("In function initBuffers, GL not initialized, creating");
@@ -104,7 +108,14 @@ function initBuffers() {
 	buffers.vbo = gl.createBuffer();
 	buffers.ibo = gl.createBuffer();
 	
+	
 	updateBuffers();
+}
+
+function updateUniforms() {
+	gl.uniformMatrix4fv(shader.uniformLocations['modelMatrix'], false, shader.m_mat);
+	gl.uniformMatrix4fv(shader.uniformLocations['viewMatrix'], false, shader.m_mat);
+	gl.uniformMatrix4fv(shader.uniformLocations['projectionMatrix'], false, shader.m_mat);
 }
 
 function updateBuffers() {
@@ -118,10 +129,25 @@ function updateBuffers() {
 }
 
 function draw() {
+	if (!gl) {
+		LogConsole("In function draw, GL not initialized, creating");
+		return;
+	}
+	gl.clearColor(0.0, 0.0, 0.0, 1.0);
+	gl.enable(gl.DEPTH_TEST);
+
 	// set the viewport
 	gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
 	// clear the depth and color
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+	
+	mat4.perspective(45, gl.viewportWidth / gl.viewportHeight, 0.1, 100.0, shader.p_mat);
+	
+	mat4.identity(shader.m_mat);
+	mat4.identity(shader.v_mat);
+	
+	mat4.translate(shader.v_mat, [-1.5, 0.0, -7.0]);
+	updateUniforms();
 	
 	gl.bindBuffer(gl.ARRAY_BUFFER, buffers.vbo);
 	var float_size = Float32Array.BYTES_PER_ELEMENT;
@@ -131,7 +157,7 @@ function draw() {
 	var uv_size = model.vertices_objects[0].texcoord.length;
 	var color_size = model.vertices_objects[0].color.length;
 	
-	LogConsole(ObjectToString(shader));
+	//LogConsole(ObjectToString(shader));
 	
 	gl.vertexAttribPointer(shader.attribLocations["position"], position_size, gl.FLOAT, false, vert_size, 0);
 	// gl.vertexAttribPointer(shader.attribLocations["normal"], normal_size, gl.FLOAT, false, vert_size, position_size * float_size);
@@ -146,9 +172,13 @@ function draw() {
 	gl.drawElements(gl.TRIANGLES, model.indices.length/3, gl.UNSIGNED_SHORT, 0);
 }
 
-function initGL() {
+function initGL(canvas) {
 	try {
-		gl = canvas.getContext("webgl");
+		gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+		
+		// remove to remove webgl debugging
+		gl = WebGLDebugUtils.makeDebugContext(gl);
+		
 		gl.viewportWidth = canvas.width;
 		gl.viewportHeight = canvas.height;
 	}
@@ -156,7 +186,7 @@ function initGL() {
 }
 
 function init(canvas) {
-	initGL();
+	initGL(canvas);
 	if (!gl) {
 		LogConsoleError("Could not initialize WebGL context");
 	}
@@ -168,6 +198,9 @@ function init(canvas) {
 	
 	initShaders();
 	initBuffers();
+	
+	LogConsole(ObjectToString(shader));
+	LogConsole(ObjectToString(buffers));
 	
 	draw();
 }
