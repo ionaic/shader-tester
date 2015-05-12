@@ -146,7 +146,7 @@ function draw() {
 	mat4.identity(shader.m_mat);
 	mat4.identity(shader.v_mat);
 	
-	mat4.translate(shader.v_mat, [-1.5, 0.0, -7.0]);
+	mat4.translate(shader.v_mat, shader.v_mat, [-1.5, 0.0, -7.0]);
 	updateUniforms();
 	
 	gl.bindBuffer(gl.ARRAY_BUFFER, buffers.vbo);
